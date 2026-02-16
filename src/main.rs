@@ -14,6 +14,21 @@ use std::thread::sleep;
 use std::time::Duration;
 
 #[derive(Debug)]
+enum Edit {
+    Replace(i32,char),
+    Delete(i32,char),
+    Insert(i32,char),
+}
+
+#[derive(Debug)]
+struct Errors {
+    percent_acuracy: i32,
+    edits: Vec<Edit>,
+}
+
+
+
+#[derive(Debug)]
 struct Term {
     term: String,
     definition: String,
@@ -44,7 +59,7 @@ impl Term{
         .read_line(&mut input)
         .expect("Failed to read line");
         // get corectness
-
+        let stats = levenshtein_distance(definition,input)
 
         true
     }
@@ -178,7 +193,7 @@ fn main() -> std::io::Result<()> {
     }
 
     // start question sequence
-    levenshtein_distance("cut"," cut");
+    levenshtein_distance("cut"," cat ");
 
     loop {
         terms[0].question(&settings);
@@ -235,26 +250,26 @@ fn load_csv(path:std::path::PathBuf) -> Result<Vec<Term>,String>{
     Ok(term_list)
 }
 
-fn levenshtein_distance(correct:&str,awnser:&str){
+fn levenshtein_distance(correct:&str,answer:&str) -> Errors{
     let mut grid:Vec<Vec<i32>> = vec![];
-    let mut awnser_vec: Vec<char> = awnser.chars().collect::<Vec<char>>();
+    let mut answer_vec: Vec<char> = answer.chars().collect::<Vec<char>>();
     let mut correct_vec: Vec<char> = correct.chars().collect::<Vec<char>>();
 
-    awnser_vec.insert(0, ' ');
+    answer_vec.insert(0, ' ');
     correct_vec.insert(0, ' ');
 
     // fill out the vecs with there colums and filler 0s 
     let mut colum:Vec<i32>;
-    for (i,x) in awnser_vec.iter().enumerate(){
+    for (i,_x) in answer_vec.iter().enumerate(){
         colum = vec![];
         colum.push(i as i32);
-        for n in 1..correct_vec.len(){
+        for _n in 1..correct_vec.len(){
             colum.push(0);
         }
         grid.push(colum);
     }
     //fix first colum
-    for (i,x) in grid[0].clone().iter().enumerate(){
+    for (i,_x) in grid[0].clone().iter().enumerate(){
         grid[0][i] = i as i32;
     }
 
@@ -267,7 +282,7 @@ fn levenshtein_distance(correct:&str,awnser:&str){
             if i as i32 == 0 || j as i32 == 0{
                 continue;
             }
-            if awnser_vec[i] == correct_vec[j]{
+            if answer_vec[i] == correct_vec[j]{
                 cost = 0;
             }else{
                 cost = 1;
@@ -283,16 +298,37 @@ fn levenshtein_distance(correct:&str,awnser:&str){
             
         }
     }
+    let distance = grid[answer_vec.len()][correct_vec.len()];
 
+    let mut edits:Vec<Edit> = vec![];
 
-
-
-    let 
-    loop{
-
+    let mut i:i32 = answer_vec.len() as i32 - 1;
+    let mut j:i32 = correct_vec.len() as i32 -1 ;
+    while i > 0 || j > 0{
+        if i > 0 && j > 0 && answer_vec[i as usize] == correct_vec[j as usize]{
+            i -=1;
+            j -=1;
+        }else if i > 0 && j > 0 && grid[i as usize][j as usize] == grid[(i-1) as usize][(j-1) as usize] + 1{
+            edits.push(Edit::Replace(i-1, correct_vec[(j) as usize]));
+            i -=1;
+            j -=1;
+        }else if i > 0  && grid[i as usize][j as usize] == grid[(i-1) as usize][(j) as usize] + 1{
+            edits.push(Edit::Delete(i-1, answer_vec[(i) as usize]));
+            i -=1;
+        }else if j > 0{
+            edits.push(Edit::Insert(i, correct_vec[(i+1) as usize]));
+            j -=1;   
+        }
     }
 
+    let length:f64 = *[answer_vec.len(),correct_vec.len()].iter().max().unwrap() as f64;
+    let mut percent:f64;
 
-    println!("{:?}",grid);
+    if length == 0.0{
+        percent = 100.0;
+    }else{
+        percent = (1.0 - distance as f64 / length) * 100
+    }
 
+    return Errors{percent_acuracy: percent,edits:edits};
 }
