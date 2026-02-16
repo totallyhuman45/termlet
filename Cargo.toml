@@ -1,0 +1,9 @@
+[package]
+name = "quiz"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+colored = "2.0"
+rfd = "0.14"
+crossterm = "0.27"
